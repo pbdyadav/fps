@@ -1,37 +1,42 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabase';
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabase'
 
 export default function NavBar() {
-  const [language, setLanguage] = useState('en');
-  const [user, setUser] = useState<any>(null);
-  const router = useRouter();
+  const [language, setLanguage] = useState('en')
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
 
-  // 🔥 AUTH LISTENER
   useEffect(() => {
+    // 🛑 Prevent build crash
+    if (!supabase?.auth) return
+
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
+      const { data } = await supabase.auth.getUser()
+      setUser(data.user)
+    }
 
-    getUser();
+    getUser()
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
 
-    return () => listener.subscription.unsubscribe();
-  }, []);
+    return () => listener?.subscription.unsubscribe()
+  }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    router.push('/');
-  };
+    if (!supabase?.auth) return
+    await supabase.auth.signOut()
+    setUser(null)
+    router.push('/')
+  }
 
   const translations = {
     en: {
