@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'FinDoc Portal - CA Document Management',
+  title: 'CA Document Management',
   description: 'Secure document management portal for chartered accountant clients. Upload, view, and download your financial and tax documents.',
   generator: 'v0.app',
   icons: {
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/icon.svg',
+        url: '/icon.png',
         type: 'image/svg+xml',
       },
     ],
