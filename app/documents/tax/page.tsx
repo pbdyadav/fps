@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import imageCompression from "browser-image-compression";
 
 const TAX_FORM_FIELDS = [
   'Aadhaar Card', 'PAN Card', 'All Bank Statements (Last 3 Years)', 'LIC Premium Receipts',
@@ -15,25 +16,25 @@ const TAX_FORM_FIELDS = [
 
 export default function TaxDocumentsPage() {
   const router = useRouter();
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  const MAX_FILE_SIZE = 300 * 1024; // 300KB
 
   const [profile, setProfile] = useState<any>(null);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
   const submitApplication = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return alert("Login required");
-  
-      const { error } = await supabase
-        .from('applications')
-        .insert({
-          user_id: user.id,
-          type: 'tax',   // tax page me 'tax'
-          status: 'submitted'
-        });
-  
-      if (error) alert(error.message);
-      else alert('Documents submitted successfully!');
-    };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return alert("Login required");
+
+    const { error } = await supabase
+      .from('applications')
+      .insert({
+        user_id: user.id,
+        type: 'tax',   // tax page me 'tax'
+        status: 'submitted'
+      });
+
+    if (error) alert(error.message);
+    else alert('Documents submitted successfully!');
+  };
 
   // 🔒 Auth + Load Profile
   useEffect(() => {
@@ -72,61 +73,80 @@ export default function TaxDocumentsPage() {
   };
 
   const uploadFile = async (file: File, docName: string) => {
-  if (file.size > MAX_FILE_SIZE) return alert("Max 5MB");
+    let uploadFileFinal = file;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return alert("User not logged in");
+    if (file.type.startsWith('image/')) {
+      const options = {
+        maxSizeMB: 0.3,          // 300 KB
+        maxWidthOrHeight: 1280,
+        useWebWorker: true,
+      };
 
-  const fileExt = file.name.split('.').pop();
-  const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      try {
+        uploadFileFinal = await imageCompression(file, options);
+      } catch (err) {
+        alert('Image compression failed');
+        return;
+      }
+    }
+    if (uploadFileFinal.size > MAX_FILE_SIZE) {
+      alert("⚠️ Max file size is 300KB. Please compress and upload again.");
+      return;
+    }
 
-  // 1️⃣ UPLOAD
-  const { error: uploadError } = await supabase.storage
-    .from('documents')
-    .upload(filePath, file, { upsert: true });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return alert("User not logged in");
 
-  if (uploadError) {
-    alert(uploadError.message);
-    return;
-  }
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
-  // 2️⃣ GET PUBLIC URL  ⭐
-  const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
-  const publicUrl = data.publicUrl;
+    // 1️⃣ UPLOAD
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, uploadFileFinal, { upsert: true });
 
-  if (!publicUrl) {
-    alert("File URL not generated");
-    return;
-  }
+    if (uploadError) {
+      alert(uploadError.message);
+      return;
+    }
 
-  // 3️⃣ CHECK EXISTING DOC
-  const { data: existing } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('category', 'tax')
-    .eq('document_name', docName)
-    .maybeSingle();
+    // 2️⃣ GET PUBLIC URL  ⭐
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    const publicUrl = data.publicUrl;
 
-  // 4️⃣ UPDATE OR INSERT
-  if (existing) {
-    await supabase.from('documents')
-      .update({ file_url: publicUrl, status: 'pending' })
-      .eq('id', existing.id);
-  } else {
-    await supabase.from('documents').insert({
-      user_id: user.id,
-      category: 'tax',
-      document_name: docName,
-      document_type: file.type,
-      file_url: publicUrl,
-      status: 'pending'
-    });
-  }
+    if (!publicUrl) {
+      alert("File URL not generated");
+      return;
+    }
 
-  alert("Document uploaded ✅");
-  loadDocuments(user.id);
-};
+    // 3️⃣ CHECK EXISTING DOC
+    const { data: existing } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('category', 'tax')
+      .eq('document_name', docName)
+      .maybeSingle();
+
+    // 4️⃣ UPDATE OR INSERT
+    if (existing) {
+      await supabase.from('documents')
+        .update({ file_url: publicUrl, status: 'pending' })
+        .eq('id', existing.id);
+    } else {
+      await supabase.from('documents').insert({
+        user_id: user.id,
+        category: 'tax',
+        document_name: docName,
+        document_type: file.type,
+        file_url: publicUrl,
+        status: 'pending'
+      });
+    }
+
+    alert("Document uploaded ✅");
+    loadDocuments(user.id);
+  };
 
 
   if (!profile) return null;

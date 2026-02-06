@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import imageCompression from "browser-image-compression";
+
 
 const LOAN_FORM_FIELDS = [
   'Aadhaar Card', 'PAN Card', 'Salary Slips (6 Months)', 'Bank Statements (1 Year)',
@@ -15,14 +17,14 @@ const LOAN_FORM_FIELDS = [
 
 export default function LoanDocumentsPage() {
   const router = useRouter();
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+  const MAX_FILE_SIZE = 300 * 1024; // 300KB
 
   const [profile, setProfile] = useState<any>(null);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
 
   const submitApplication = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return alert("Login required");
+if (!user) return alert("User not logged in");
 
     const { error } = await supabase
       .from('applications')
@@ -72,24 +74,45 @@ export default function LoanDocumentsPage() {
   };
 
   const uploadFile = async (file: File, docName: string) => {
-    if (file.size > MAX_FILE_SIZE) return alert("Max 5MB");
+    let uploadFileFinal = file;
+
+    if (file.type.startsWith('image/')) {
+      const options = {
+        maxSizeMB: 0.3,          // 300 KB
+        maxWidthOrHeight: 1280,
+        useWebWorker: true,
+      };
+
+      try {
+        uploadFileFinal = await imageCompression(file, options);
+      } catch (err) {
+        alert('Image compression failed');
+        return;
+      }
+    }
+    if (uploadFileFinal.size > MAX_FILE_SIZE) {
+      alert("⚠️ Max file size is 300KB. Please compress and upload again.");
+      return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     const path = `${user!.id}/${Date.now()}_${file.name}`;
 
-    await supabase.storage.from('documents').upload(path, file, { upsert: true });
-    const { data: url } = supabase.storage.from('documents').getPublicUrl(path);
+    await supabase.storage.from('documents').upload(path, uploadFileFinal, { upsert: true });
+
+    const { data } = supabase.storage.from('documents').getPublicUrl(path);
+    const publicUrl = data.publicUrl;
 
     const { data: existing } = await supabase.from('documents')
       .select('*').eq('user_id', user!.id)
-      .eq('category', 'loan').eq('document_type', docName).maybeSingle();
+      .eq('category', 'loan').eq('document_name', docName).maybeSingle();
 
     if (existing) {
-      await supabase.from('documents').update({ file_url: url.publicUrl }).eq('id', existing.id);
+      await supabase.from('documents').update({ file_url: publicUrl }).eq('id', existing.id);
     } else {
       await supabase.from('documents').insert({
         user_id: user!.id, category: 'loan',
         document_name: docName, document_type: docName,
-        file_url: url.publicUrl
+        file_url: publicUrl
       });
     }
     loadDocuments(user!.id);
@@ -140,7 +163,7 @@ export default function LoanDocumentsPage() {
             Submit All Documents
           </Button>
         </div>
-        </div>
+      </div>
     </main>
   );
 }

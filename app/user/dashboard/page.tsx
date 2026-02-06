@@ -72,7 +72,7 @@ export default function UserDashboard() {
       <h1 className="text-3xl font-bold">
         Welcome {user?.user_metadata?.full_name || 'User'}
       </h1>
-      <Button onClick={handleLogout}>Logout</Button>
+      {/*<Button onClick={handleLogout}>Logout</Button>*/}
     </div>
 
     <Card className="p-6 mb-6">

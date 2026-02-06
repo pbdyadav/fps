@@ -14,13 +14,31 @@ export default function AdminDashboard() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [clientProfile, setClientProfile] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [viewType, setViewType] = useState<'client' | 'business'>('client');
 
+  const filteredClients = clients.filter(c => {
+    const term = search.toLowerCase();
+    return (
+      c.entity_type === viewType &&
+      (
+        c.full_name?.toLowerCase().includes(term) ||
+        c.email?.toLowerCase().includes(term) ||
+        c.mobile?.includes(term)
+      )
+    );
+  });
 
+  <input
+    placeholder="Search by name, email or mobile"
+    className="border p-2 rounded w-full mb-4"
+    onChange={(e) => setSearch(e.target.value)}
+  />
   // ================= FETCH CLIENTS =================
   const fetchClients = async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, email, mobile, role')
+      .select('id, full_name, email, mobile, role, entity_type')
       .neq('role', 'admin');
 
     setClients(data || []);
@@ -108,20 +126,29 @@ export default function AdminDashboard() {
           <div className="w-2/3">
             <Card className="p-6 h-[75vh] overflow-y-auto ">
               <h2 className="text-2xl font-bold mb-6">Clients</h2>
+              <input
+                type="text"
+                placeholder="Search by name, email or mobile"
+                className="border p-2 rounded w-full mb-4"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Mobile</th>
                     <th>Role</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {clients.map(client => (
+                  {filteredClients.map(client => (
                     <tr key={client.id} className="border-b">
                       <td>{client.full_name}</td>
                       <td>{client.email}</td>
+                      <td>{client.mobile}</td>
                       <td>{client.role}</td>
                       <td className="flex items-center">
                         {/* VIEW BUTTON */}
@@ -182,11 +209,22 @@ export default function AdminDashboard() {
                         </span>
                       </div>
 
-                      <img
-                        src={doc.file_url}
-                        alt="preview"
-                        className="w-full h-24 object-cover rounded border"
-                      />
+                      {/* IMAGE PREVIEW */}
+                      {/\.(jpg|jpeg|png|webp)$/i.test(doc.file_url) && (
+                        <img
+                          src={doc.file_url}
+                          alt="preview"
+                          className="w-full h-24 object-cover rounded border"
+                        />
+                      )}
+
+                      {/* PDF PREVIEW */}
+                      {/\.pdf$/i.test(doc.file_url) && (
+                        <iframe
+                          src={doc.file_url}
+                          className="w-full h-24 border rounded"
+                        />
+                      )}
 
                       <div className="flex justify-between text-[11px]">
                         <a href={doc.file_url} target="_blank" className="text-blue-600">View</a>
@@ -208,6 +246,7 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+
 
                 {/* APPLICATIONS */}
                 <hr />
