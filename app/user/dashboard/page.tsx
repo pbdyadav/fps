@@ -1,29 +1,31 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Download, Upload, File, Shield } from 'lucide-react';
+import { Upload, File } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  uploadedDate: string;
-  size: string;
-  category: 'Tax' | 'Loan';
-}
 
 export default function UserDashboard() {
   const router = useRouter();
 
-  // ✅ HOOKS MUST BE INSIDE COMPONENT
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
+  // 🔔 Load Notifications
+  const loadNotifications = async (userId: string) => {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    setNotifications(data || []);
+  };
+
+  // 🔐 Check Login
   useEffect(() => {
     const checkUser = async () => {
       const { data, error } = await supabase.auth.getUser();
@@ -40,68 +42,95 @@ export default function UserDashboard() {
     checkUser();
   }, [router]);
 
-  const [documents] = useState<Document[]>([
-    {
-      id: '1',
-      name: 'ITR-2024.pdf',
-      type: 'Income Tax Return',
-      uploadedDate: '2024-01-25',
-      size: '2.4 MB',
-      category: 'Tax',
-    },
-  ]);
+  // 🔔 Load notifications after user found
+  useEffect(() => {
+    if (user) loadNotifications(user.id);
+  }, [user]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
+  // ✅ Mark as Read
+  const markAsRead = async (id: string) => {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id);
+
+    setNotifications(prev =>
+      prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+    );
   };
 
-  const handleDownload = (docName: string) => {
-    console.log(`Downloading ${docName}`);
-  };
-
-  const handleUpload = () => {
-    router.push('/documents/upload');
-  };
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   if (loading) return <p className="p-10 text-center">Loading dashboard...</p>;
 
   return (
-  <main className="min-h-screen p-6 bg-gray-100">
-    <div className="flex justify-between mb-6 items-center">
-      <h1 className="text-3xl font-bold">
-        Welcome {user?.user_metadata?.full_name || 'User'}
-      </h1>
-      {/*<Button onClick={handleLogout}>Logout</Button>*/}
-    </div>
+    <main className="min-h-screen p-6 bg-gray-100">
+      <div className="flex justify-between mb-6 items-center">
+        <h1 className="text-3xl font-bold">
+          Welcome {user?.user_metadata?.full_name || 'User'}
+        </h1>
 
-    <Card className="p-6 mb-6">
-      Logged in as: <b>{user?.email}</b>
-    </Card>
+        {unreadCount > 0 && (
+          <span className="bg-red-600 text-white text-xs px-3 py-1 rounded-full">
+            {unreadCount} New
+          </span>
+        )}
+      </div>
 
-    {/* ACTION CARDS */}
-    <div className="grid md:grid-cols-2 gap-6">
-
-      <Card className="p-6 flex flex-col items-center text-center shadow-md">
-        <Upload className="w-10 h-10 text-primary mb-3" />
-        <h2 className="text-xl font-bold mb-2">Loan Documents</h2>
-        <p className="text-sm mb-4 text-gray-500">Upload KYC, bank, property, loan papers</p>
-        <Button onClick={() => router.push('/documents/loan')} className="w-full">
-          Go to Loan Upload
-        </Button>
+      <Card className="p-6 mb-6">
+        Logged in as: <b>{user?.email}</b>
       </Card>
 
-      <Card className="p-6 flex flex-col items-center text-center shadow-md">
-        <File className="w-10 h-10 text-primary mb-3" />
-        <h2 className="text-xl font-bold mb-2">Tax Documents</h2>
-        <p className="text-sm mb-4 text-gray-500">Upload ITR, PAN, Aadhaar, LIC, GST</p>
-        <Button onClick={() => router.push('/documents/tax')} className="w-full">
-          Go to Tax Upload
-        </Button>
-      </Card>
+      {/* 🔔 Notifications */}
+      {notifications.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-400 p-4 rounded mb-6">
+          <h2 className="font-bold text-yellow-700 mb-2">🔔 Notifications</h2>
 
-    </div>
-  </main>
-);
+          {notifications.map((note) => (
+            <div
+              key={note.id}
+              className={`border-b py-2 ${!note.is_read ? 'bg-yellow-100' : ''}`}
+            >
+              <p className="font-semibold">{note.title}</p>
+              <p className="text-sm">{note.message}</p>
 
+              {!note.is_read && (
+                <button
+                  onClick={() => markAsRead(note.id)}
+                  className="text-xs text-blue-600 underline mt-1"
+                >
+                  Mark as read
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 📁 ACTION CARDS ONLY (NO LEFT MENU HERE) */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="p-6 flex flex-col items-center text-center shadow-md">
+          <Upload className="w-10 h-10 text-primary mb-3" />
+          <h2 className="text-xl font-bold mb-2">Loan Documents</h2>
+          <p className="text-sm mb-4 text-gray-500">
+            Upload KYC, bank, property, loan papers
+          </p>
+          <Button onClick={() => router.push('/documents/loan')} className="w-full">
+            Go to Loan Upload
+          </Button>
+        </Card>
+
+        <Card className="p-6 flex flex-col items-center text-center shadow-md">
+          <File className="w-10 h-10 text-primary mb-3" />
+          <h2 className="text-xl font-bold mb-2">Tax Documents</h2>
+          <p className="text-sm mb-4 text-gray-500">
+            Upload ITR, PAN, Aadhaar, LIC, GST
+          </p>
+          <Button onClick={() => router.push('/documents/tax')} className="w-full">
+            Go to Tax Upload
+          </Button>
+        </Card>
+      </div>
+    </main>
+  );
 }

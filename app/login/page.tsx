@@ -33,20 +33,41 @@ export default function LoginPage() {
     return;
   }
 
-  // 🔍 Role check after login
-  const { data: profile } = await supabase
+  // 🔥 Always get fresh user (avoids stale session)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    alert("User not found");
+    return;
+  }
+
+  // 🎯 Fetch role from PROFILES table (REAL SOURCE)
+  const { data: profile, error: roleError } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', data.user.id)
+    .eq('id', user.id)
     .single();
 
-  if (profile?.role === 'admin') {
-    router.push('/admin/dashboard');  // 👑 Admin
-  } else {
-    router.push('/user/dashboard');   // 👤 Normal User
+  if (roleError || !profile) {
+    alert("Role not assigned");
+    return;
+  }
+
+  console.log("LOGIN ROLE =", profile.role);
+
+  // 🚀 ROLE BASED ROUTING
+  if (profile.role === 'admin' || profile.role === 'staff') {
+    router.push('/admin/dashboard');       // Admin Panel Access
+  } 
+  else if (profile.role === 'master') {
+    router.push('/admin/dashboard');     // View-only dashboard
+  } 
+  else {
+    router.push('/user/dashboard');            // Normal user
   }
 };
-
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-muted">

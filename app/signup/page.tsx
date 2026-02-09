@@ -35,13 +35,12 @@ export default function SignupPage() {
 
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
-        id: user.id,
-        email,
+      .update({
         full_name: name,
-        mobile: '',
+        email: email,
         role: 'user',
-      });
+      })
+      .eq('id', user.id);
 
     if (profileError) {
       alert(profileError.message);
@@ -55,7 +54,7 @@ export default function SignupPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-muted">
       <Card className="p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold ring">Create Account</h1>
+        <h1 className="text-2xl font-bold mb-6">Create Account</h1>
 
         <form onSubmit={handleSignup} className="space-y-4">
           <input
