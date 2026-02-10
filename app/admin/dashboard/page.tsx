@@ -1,22 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Trash2, Download, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useRef } from 'react';
-
 
 const sendNotification = async (userId: string, title: string, message: string) => {
   const { error } = await supabase.from('notifications').insert([
-    { user_id: userId, title, message, },
+    { user_id: userId, title, message },
   ]);
-
   if (error) alert('Error sending notification');
   else alert('Notification Sent ✅');
 };
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [myRole, setMyRole] = useState('');
@@ -30,17 +28,13 @@ export default function AdminDashboard() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [noteUser, setNoteUser] = useState('');
   const [viewType, setViewType] = useState<'client' | 'business'>('client');
-  const [selectedUser, setSelectedUser] = useState('');
   const [noteTitle, setNoteTitle] = useState('');
   const [noteMessage, setNoteMessage] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkAccess = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.push('/login');
 
       const { data: profile } = await supabase
@@ -53,55 +47,24 @@ export default function AdminDashboard() {
         router.push('/login');
       } else {
         setMyRole(profile.role);
+        fetchClients();
       }
     };
-
     checkAccess();
   }, []);
-  // ================= FETCH CLIENTS =================
+
   const fetchClients = async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, email, mobile, role, entity_type')
-      
-
+      .select('id, full_name, email, mobile, role, entity_type');
     setClients(data || []);
   };
 
-  const updateUserRole = async (userId: string, newRole: string) => {
-    await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
-    fetchClients();
-  };
-
-  const filteredClients = clients.filter(c => {
-    const term = search.toLowerCase();
-    return (
-      c.entity_type === viewType &&
-      (
-        c.full_name?.toLowerCase().includes(term) ||
-        c.email?.toLowerCase().includes(term) ||
-        c.mobile?.includes(term)
-      )
-    );
-  });
-
-  <input
-    placeholder="Search by name, email or mobile"
-    className="border p-2 rounded w-full mb-4"
-    onChange={(e) => setSearch(e.target.value)}
-  />
-
-
-  // ================= FETCH CLIENT DETAILS =================
   const fetchClientDetails = async (id: string) => {
     setSelectedClientId(id);
-
-    const { data } = await supabase.from('profiles').select('*').eq('id', id).single();
-    setClientProfile(data);
-
-    const { data: docs } = await supabase.from('documents').select('*').eq('user_id', id);
-    setUserDocs(docs || []);
-
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', id).single();
+    setClientProfile(profile);
+    loadUserDocuments(id);
     const { data: apps } = await supabase.from('applications').select('*').eq('user_id', id);
     setApplications(apps || []);
   };
@@ -111,331 +74,248 @@ export default function AdminDashboard() {
     setUserDocs(data || []);
   };
 
-  const searchedClients = filteredClients.filter(c =>
-    `${c.full_name} ${c.email}`.toLowerCase().includes(clientSearch.toLowerCase())
-  );
+  const updateUserRole = async (userId: string, newRole: string) => {
+    await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+    fetchClients();
+  };
 
-  // ================= ADMIN CHECK =================
-  useEffect(() => {
-    const initAdmin = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return router.replace('/login');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (!profile) return router.replace('/');
-      setMyRole(profile?.role || '');
-      //setMyRole(profile.role); // ✅ IMPORTANT
-
-      if (profile.role !== 'admin' && profile.role !== 'staff' && profile.role !== 'master')
-        return router.replace('/');
-
-      fetchClients();
-    };
-
-    initAdmin();
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-
-  // ================= APPROVAL FUNCTIONS =================
   const updateDocStatus = async (docId: string, status: string) => {
-    await supabase.from('documents').update({ status }).eq('id', docId);
-
-    if (selectedClientId) loadUserDocuments(selectedClientId);
-
+    const { error } = await supabase.from('documents').update({ status: status }).eq('id', docId);
+    if (!error) {
+      loadUserDocuments(selectedClientId!);
+    } else {
+      alert(`Update failed: ${error.message}`);
+    }
   };
 
-  // ================= APP APPROVAL =================
   const updateAppStatus = async (id: string, status: string) => {
-    await supabase.from('applications').update({ status }).eq('id', id);
-    fetchClientDetails(selectedClientId!);
+    const { error } = await supabase.from('applications').update({ status: status }).eq('id', id);
+    if (!error) {
+      fetchClientDetails(selectedClientId!);
+    } else {
+      alert(`Update failed: ${error.message}`);
+    }
   };
 
-  // ================= MANUAL NOTIFICATION =================
+  const handleDeleteClient = async (id: string) => {
+    const confirmDelete = prompt("Type DELETE to confirm deletion of this user:");
+    if (confirmDelete !== "DELETE") return;
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (!error) {
+      alert("User Deleted");
+      fetchClients();
+      if (selectedClientId === id) setSelectedClientId(null);
+    }
+  };
+
   const handleManualNotification = async () => {
     if (!noteUser || !noteTitle || !noteMessage) return alert("All fields required");
-
-    await supabase.from('notifications').insert([
-      { user_id: noteUser, title: noteTitle, message: noteMessage }
-    ]);
-
+    await supabase.from('notifications').insert([{ user_id: noteUser, title: noteTitle, message: noteMessage }]);
     alert("Notification Sent ✅");
-    setNoteTitle('');
-    setNoteMessage('');
+    setNoteTitle(''); setNoteMessage('');
   };
 
-  // ================= DELETE CLIENT =================
-  const handleDeleteClient = async (id: string) => {
-    const confirmDelete = prompt("Type DELETE to confirm");
-    if (confirmDelete !== "DELETE") return;
-
-    await supabase.from('profiles').delete().eq('id', id);
-    fetchClients();
-    setSelectedClientId(null);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
+  const filteredClients = clients.filter(c => {
+    const term = search.toLowerCase();
+    const matchesSearch = (
+      c.full_name?.toLowerCase().includes(term) ||
+      c.email?.toLowerCase().includes(term) ||
+      c.mobile?.includes(term)
+    );
+    return c.entity_type === viewType && matchesSearch;
+  });
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
-
-      <div className="max-w-7xl mx-auto">
-
-        <div className="flex justify-between mb-8">
-          <h1 className="text-4xl font-bold">Admin Dashboard</h1>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
+          <div className="flex gap-3">
+             <Button variant={viewType === 'client' ? 'default' : 'outline'} onClick={() => setViewType('client')}>Individual</Button>
+             <Button variant={viewType === 'business' ? 'default' : 'outline'} onClick={() => setViewType('business')}>Business</Button>
+          </div>
         </div>
 
-        <Card className="p-6 space-y-3">
-          <h2 className="text-lg font-bold">Send Notification to Client</h2>
-
-
-          <div className="relative">
+        {/* NOTIFICATION CARD */}
+        <Card className="p-6 space-y-4 shadow-sm">
+          <h2 className="text-lg font-bold">Quick Notify</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative" ref={dropdownRef}>
               <input
                 type="text"
                 placeholder="Search client..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setShowDropdown(true);
-                }}
-                className="border p-2 w-full rounded"
+                value={clientSearch}
+                onChange={(e) => { setClientSearch(e.target.value); setShowDropdown(true); }}
+                className="border p-2 w-full rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm"
               />
-
               {showDropdown && (
-                <div className="absolute z-50 bg-white border w-full max-h-48 overflow-y-auto rounded shadow">
-                  {filteredClients.length === 0 && (
-                    <div className="p-2 text-gray-500 text-sm">No clients found</div>
-                  )}
-
-                  {filteredClients.map(u => (
-                    <div
-                      key={u.id}
-                      className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
-                      onClick={() => {
-                        setNoteUser(u.id);
-                        setSearch(`${u.full_name} (${u.email})`);
-                        setShowDropdown(false);
-                      }}
-                    >
-                      {u.full_name} ({u.email})
-                    </div>
+                <div className="absolute z-[100] bg-white border w-full max-h-48 overflow-y-auto rounded shadow-xl mt-1">
+                  {clients.filter(c => c.full_name?.toLowerCase().includes(clientSearch.toLowerCase())).map(u => (
+                    <div key={u.id} className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 text-sm" onClick={() => {
+                      setNoteUser(u.id);
+                      setClientSearch(u.full_name);
+                      setShowDropdown(false);
+                    }}>{u.full_name}</div>
                   ))}
                 </div>
               )}
             </div>
-
+            <input placeholder="Title" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} className="border p-2 rounded text-sm" />
+            <div className="flex gap-2">
+              <input placeholder="Message" value={noteMessage} onChange={(e) => setNoteMessage(e.target.value)} className="border p-2 flex-1 rounded text-sm" />
+              <Button onClick={handleManualNotification}>Send</Button>
+            </div>
           </div>
-
-
-          <input placeholder="Massage Title" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} className="border p-2 w-full rounded" />
-          <textarea placeholder="Message" value={noteMessage} onChange={(e) => setNoteMessage(e.target.value)} className="border p-2 w-full rounded" />
-
-          <Button onClick={handleManualNotification}>Send</Button>
         </Card>
 
-        <div className="flex gap-2 items-stretch">
-
-
-          {/* CLIENT LIST */}
-          <div className="w-2/3">
-            <Card className="p-6 h-[75vh] overflow-y-auto ">
-              <h2 className="text-2xl font-bold mb-6">Clients</h2>
-              <input
-                type="text"
-                placeholder="Search by name, email or mobile"
-                className="border p-2 rounded w-full mb-4"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Mobile</th>
-                    <th>Current Role</th>
-                    <th>Change Role</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredClients.map((client) => (
-                    <tr key={client.id} className="border-b">
-                      <td>{client.full_name}</td>
-                      <td>{client.email}</td>
-                      <td>{client.mobile}</td>
-
-                      {/* CURRENT ROLE */}
-                      <td className="font-medium capitalize">{client.role}</td>
-
-                      {/* CHANGE ROLE — ONLY ADMIN */}
-                      <td>
-                        {myRole === 'admin' ? (
-                          <select
-                            value={client.role}
-                            onChange={(e) => updateUserRole(client.id, e.target.value)}
-                            className="border p-1 rounded text-sm"
-                          >
-                            <option value="user">User</option>
-                            <option value="master">Master Viewer</option>
-                            <option value="staff">Staff</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                        ) : (
-                          <span className="text-gray-400 text-xs">No Permission</span>
-                        )}
-                      </td>
-
-                      {/* ACTION BUTTONS */}
-                      <td className="flex items-center gap-2">
-                        <button
-                          className="text-blue-600 hover:text-blue-800"
-                          onClick={() => fetchClientDetails(client.id)}
-                        >
-                          View
-                        </button>
-
-                        {(myRole === 'admin' || myRole === 'staff') && (
-                          <Button
-                            onClick={() =>
-                              sendNotification(
-                                client.id,
-                                'Document Update',
-                                'Your document has been reviewed. Please check dashboard.'
-                              )
-                            }
-                            className="bg-blue-600 text-white"
-                          >
-                            Notify
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
-
-          {/* DETAILS PANEL */}
-          {selectedClientId && clientProfile && (
-            <div className="w-1/3">
-              <Card className="p-6 sticky top-6 h-[75vh] overflow-y-auto space-y-4">
-                <h2 className="text-xl font-bold">Client Details</h2>
-                <p><b>Name:</b> {clientProfile.full_name}</p>
-                <p><b>Email:</b> {clientProfile.email}</p>
-                <p><b>Mobile:</b> {clientProfile.mobile}</p>
-
-                {/* DOCUMENTS */}
-                <hr />
-                <h3 className="font-bold mt-4">Documents</h3>
-
-                {userDocs.length === 0 && (
-                  <p className="text-sm text-gray-500">No documents uploaded</p>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  {userDocs.map(doc => (
-                    <div key={doc.id} className="border rounded p-2 bg-white text-xs space-y-1">
-
-                      <div className="flex justify-between">
-                        <span className="font-medium truncate">{doc.document_name}</span>
-                        <span className={`px-1 py-0.5 rounded text-[10px]
-                            ${doc.status === 'approved' ? 'bg-green-100 text-green-700' :
-                            doc.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              'bg-yellow-100 text-yellow-700'}`}>
-                          {doc.status || 'pending'}
-                        </span>
-                      </div>
-
-                      {/* IMAGE PREVIEW */}
-                      {/\.(jpg|jpeg|png|webp)$/i.test(doc.file_url) && (
-                        <img
-                          src={doc.file_url}
-                          alt="preview"
-                          className="w-full h-24 object-cover rounded border"
-                        />
-                      )}
-
-                      {/* PDF PREVIEW */}
-                      {/\.pdf$/i.test(doc.file_url) && (
-                        <iframe
-                          src={doc.file_url}
-                          className="w-full h-24 border rounded"
-                        />
-                      )}
-                      {/* VIEW / DOWNLOAD for ALL ROLES */}
-                      <div className="flex justify-between text-[11px]">
-                        <a href={doc.file_url} target="_blank" className="text-blue-600">View</a>
-                        <a href={doc.file_url} download className="text-green-600">Download</a>
-                      </div>
-                      {/* APPROVAL BUTTONS */}
-                      {(myRole === 'admin' || myRole === 'staff') && doc.status === 'pending' && (
-                        <div className="flex gap-1">
-                          <button
-                            className="bg-green-600 text-white px-2 py-1 rounded text-[10px]"
-                            onClick={() => updateDocStatus(doc.id, 'approved')}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="bg-red-600 text-white px-2 py-1 rounded text-[10px]"
-                            onClick={() => updateDocStatus(doc.id, 'rejected')}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* APPLICATIONS */}
-                <hr />
-                <h3 className="font-bold">Applications</h3>
-
-                {applications.map(app => (
-                  <div key={app.id} className="border p-3 rounded bg-gray-50">
-                    <p><b>Type:</b> {app.type}</p>
-                    <p><b>Status:</b> {app.status}</p>
-
-                    {app.status === 'submitted' && (
-                      <div className="flex gap-2 mt-2">
-                        <Button className="bg-green-600 text-white" onClick={() => updateAppStatus(app.id, 'approved')}>
-                          Approve
-                        </Button>
-                        <Button className="bg-red-600 text-white" onClick={() => updateAppStatus(app.id, 'rejected')}>
-                          Reject
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                <Button onClick={() => setSelectedClientId(null)}>Close</Button>
-              </Card>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* CLIENT LIST TABLE */}
+          <Card className="flex-1 p-6 overflow-x-auto shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+               <h2 className="text-2xl font-bold">User Records</h2>
+               <input placeholder="Filter list..." className="border p-2 rounded w-64 shadow-sm text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-          )}
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b text-gray-400 text-xs uppercase tracking-wider">
+                  <th className="p-4 font-semibold">Client Info</th>
+                  <th className="p-4 font-semibold">Role</th>
+                  <th className="p-4 font-semibold">Management</th>
+                  <th className="p-4 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClients.map((client) => (
+                  <tr key={client.id} className="border-b hover:bg-gray-50 transition-colors">
+                    <td className="p-4">
+                      <div className="font-bold text-gray-700">{client.full_name}</div>
+                      <div className="text-xs text-gray-500">{client.email}</div>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold uppercase">{client.role}</span>
+                    </td>
+                    <td className="p-4">
+                      {(myRole === 'admin' || myRole === 'master') && (
+                        <select 
+                          className="border text-xs p-1.5 rounded-md bg-white shadow-sm"
+                          value={client.role}
+                          onChange={(e) => updateUserRole(client.id, e.target.value)}
+                        >
+                          <option value="user">User</option>
+                          <option value="staff">Staff</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex gap-6 items-center">
+                        <button 
+                          onClick={() => fetchClientDetails(client.id)}
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-full transition-all"
+                          title="View Details"
+                        >
+                          <Eye size={22}/>
+                        </button>
+                        {myRole === 'admin' && (
+                          <button 
+                            onClick={() => handleDeleteClient(client.id)}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-full transition-all"
+                            title="Delete User"
+                          >
+                            <Trash2 size={22}/>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          {/* RIGHT DETAILS PANEL WITH THUMBNAILS */}
+          {/* RIGHT DETAILS PANEL - UPDATED FOR TWO COLUMNS */}
+{selectedClientId && clientProfile && (
+  <Card className="w-full lg:w-[500px] p-6 space-y-6 h-fit sticky top-6 bg-white shadow-2xl border-t-4 border-blue-600 animate-in fade-in slide-in-from-right-4">
+    <div className="flex justify-between items-start border-b pb-4">
+      <div>
+        <h2 className="text-xl font-black text-gray-800">{clientProfile.full_name}</h2>
+        <p className="text-sm font-medium text-gray-500">{clientProfile.mobile}</p>
+      </div>
+      <Button variant="ghost" size="sm" className="rounded-full h-8 w-8 p-0" onClick={() => setSelectedClientId(null)}>✕</Button>
+    </div>
+
+    <div>
+      <h3 className="font-bold mb-4 flex items-center gap-2 text-blue-700 uppercase text-xs tracking-wider">Documents & Previews</h3>
+      
+      {/* GRID CONTAINER FOR TWO COLUMNS */}
+      <div className="grid grid-cols-2 gap-3">
+        {userDocs.length === 0 && (
+          <p className="col-span-2 text-xs text-gray-400 italic bg-gray-50 p-3 rounded text-center">No documents found.</p>
+        )}
+        
+        {userDocs.map(doc => (
+          <div key={doc.id} className="border border-gray-100 rounded-xl p-3 bg-gray-50 shadow-sm space-y-2">
+            <div className="flex justify-between items-center gap-1">
+              <span className="font-bold text-[9px] text-gray-700 truncate flex-1">{doc.document_name}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase whitespace-nowrap ${
+                doc.status === 'approved' ? 'bg-green-100 text-green-700' : doc.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+              }`}>{doc.status || 'Pending'}</span>
+            </div>
+
+            {/* THUMBNAIL */}
+            <div className="w-full h-24 bg-gray-200 rounded-lg overflow-hidden border border-gray-100 relative">
+               {/\.(jpg|jpeg|png|webp)$/i.test(doc.file_url) ? (
+                  <img src={doc.file_url} alt="preview" className="w-full h-full object-cover" />
+               ) : /\.pdf$/i.test(doc.file_url) ? (
+                  <iframe src={doc.file_url} className="w-full h-full pointer-events-none scale-75" scrolling="no" />
+               ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">No Preview</div>
+               )}
+            </div>
+            
+            <div className="flex gap-1 text-center">
+              <a href={doc.file_url} target="_blank" className="flex-1 bg-white border py-1 rounded-md text-[8px] font-bold text-gray-600 hover:shadow-sm">View</a>
+              <a href={doc.file_url} download className="flex-1 bg-white border py-1 rounded-md text-[8px] font-bold text-gray-600 hover:shadow-sm">Save</a>
+            </div>
+
+            {(myRole === 'admin' || myRole === 'staff') && (
+              <div className="flex gap-1 pt-1">
+                <button 
+                  onClick={() => updateDocStatus(doc.id, 'approved')}
+                  className="flex-1 bg-green-600 text-white py-1 rounded-md text-[8px] font-black hover:bg-green-700"
+                >Approve</button>
+                <button 
+                  onClick={() => updateDocStatus(doc.id, 'rejected')}
+                  className="flex-1 bg-red-600 text-white py-1 rounded-md text-[8px] font-black hover:bg-red-700"
+                >Reject</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* SERVICES SECTION */}
+    <div className="pt-4 border-t">
+      <h3 className="font-bold mb-3 text-blue-700 uppercase text-xs tracking-wider">Services</h3>
+      <div className="grid grid-cols-1 gap-2">
+        {applications.map(app => (
+          <div key={app.id} className="bg-white border-2 border-blue-50 p-3 rounded-xl shadow-sm">
+            <div className="flex justify-between items-center mb-2">
+               <p className="text-xs font-black text-gray-700">{app.type}</p>
+               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{app.status}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1 h-7 text-[9px] font-bold bg-green-600 hover:bg-green-700" onClick={() => updateAppStatus(app.id, 'approved')}>Approve</Button>
+              <Button size="sm" className="flex-1 h-7 text-[9px] font-bold bg-red-600 hover:bg-red-700" onClick={() => updateAppStatus(app.id, 'rejected')}>Reject</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </Card>
+)}
         </div>
       </div>
     </main>
