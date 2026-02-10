@@ -24,7 +24,7 @@ export default function LoanDocumentsPage() {
 
   const submitApplication = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-if (!user) return alert("User not logged in");
+    if (!user) return alert("User not logged in");
 
     const { error } = await supabase
       .from('applications')
@@ -37,7 +37,13 @@ if (!user) return alert("User not logged in");
     if (error) alert(error.message);
     else alert('Documents submitted successfully!');
   };
+  useEffect(() => {
+  if (!profile) return;
 
+  if (!profile.profile_completed) {
+    router.push('/profile');
+  }
+}, [profile]);
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -56,22 +62,7 @@ if (!user) return alert("User not logged in");
     setUploadedDocs(data || []);
   };
 
-  const updateProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: profile.full_name,
-        mobile: profile.mobile,
-        address: profile.address
-      })
-      .eq('id', user.id);
-
-    if (error) alert(error.message);
-    else alert("Profile Updated ✅");
-  };
 
   const uploadFile = async (file: File, docName: string) => {
     let uploadFileFinal = file;
@@ -125,13 +116,10 @@ if (!user) return alert("User not logged in");
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Loan Documents</h1>
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-xl font-bold">Profile Info</h2>
-          <input value={profile.full_name || ''} onChange={e => setProfile({ ...profile, full_name: e.target.value })} className="border p-2 w-full rounded" placeholder="Full Name" />
-          <input value={profile.mobile || ''} onChange={e => setProfile({ ...profile, mobile: e.target.value })} className="border p-2 w-full rounded" placeholder="Mobile" />
-          <textarea value={profile.address || ''} onChange={e => setProfile({ ...profile, address: e.target.value })} className="border p-2 w-full rounded" placeholder="Address" />
-          <input value={profile.email || ''} onChange={e => setProfile({ ...profile, email: e.target.value })} className="border p-2 w-full rounded" placeholder="Email" />
-          <Button onClick={updateProfile}>Save Profile</Button>
+        <Card className="p-4 bg-blue-50 text-sm">
+          <p><b>Name:</b> {profile.full_name}</p>
+          <p><b>Mobile:</b> {profile.mobile}</p>
+          <p><b>Email:</b> {profile.email}</p>
         </Card>
 
         <Card className="p-6 mt-6">

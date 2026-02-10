@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [entityType, setEntityType] = useState('client');
 
   const handleSignup = async (e: any) => {
     e.preventDefault();
@@ -39,6 +40,7 @@ export default function SignupPage() {
         full_name: name,
         email: email,
         role: 'user',
+        entity_type: entityType   // ⭐ IMPORTANT
       })
       .eq('id', user.id);
 
@@ -64,7 +66,14 @@ export default function SignupPage() {
             required
             className="w-full border p-2 rounded"
           />
-
+          <select
+            value={entityType}
+            onChange={(e) => setEntityType(e.target.value)}
+            className="w-full border p-2 rounded"
+          >
+            <option value="client">Individual</option>
+            <option value="business">Business / Company</option>
+          </select>
           <input
             type="email"
             placeholder="Email"

@@ -35,7 +35,9 @@ export default function TaxDocumentsPage() {
     if (error) alert(error.message);
     else alert('Documents submitted successfully!');
   };
-
+{/*if (uploadedDocs.length < 3) {
+  return alert("Please upload required documents before submitting.");
+} */}
   // 🔒 Auth + Load Profile
   useEffect(() => {
     const init = async () => {
@@ -55,22 +57,7 @@ export default function TaxDocumentsPage() {
     setUploadedDocs(data || []);
   };
 
-  const updateProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: profile.full_name,
-        mobile: profile.mobile,
-        address: profile.address
-      })
-      .eq('id', user.id);
-
-    if (error) alert(error.message);
-    else alert("Profile Updated ✅");
-  };
+  
 
   const uploadFile = async (file: File, docName: string) => {
     let uploadFileFinal = file;
@@ -156,17 +143,11 @@ export default function TaxDocumentsPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Income Tax Documents</h1>
 
-        <Card className="p-6 space-y-4">
-          <h2 className="text-xl font-bold">Profile Info</h2>
-
-          <input value={profile.full_name || ''} onChange={e => setProfile({ ...profile, full_name: e.target.value })} className="border p-2 w-full rounded" placeholder="Full Name" />
-          <input value={profile.mobile || ''} onChange={e => setProfile({ ...profile, mobile: e.target.value })} className="border p-2 w-full rounded" placeholder="Mobile" />
-          <textarea value={profile.address || ''} onChange={e => setProfile({ ...profile, address: e.target.value })} className="border p-2 w-full rounded" placeholder="Address" />
-          <input value={profile.email || ''} onChange={e => setProfile({ ...profile, email: e.target.value })} className="border p-2 w-full rounded" placeholder="Email" />
-
-          <Button onClick={updateProfile}>Save Profile</Button>
-        </Card>
-
+        <Card className="p-4 bg-blue-50 text-sm mb-4">
+  <p><b>Name:</b> {profile.full_name}</p>
+  <p><b>Mobile:</b> {profile.mobile}</p>
+  <p><b>Email:</b> {profile.email}</p>
+</Card>
         <Card className="p-6 mt-6">
           <h2 className="text-xl font-bold mb-4">Upload Documents</h2>
 
@@ -188,6 +169,7 @@ export default function TaxDocumentsPage() {
           </div>
         ))}
 
+        
         {/* ✅ ONE FINAL SUBMIT BUTTON */}
         <div className="mt-6">
           <Button

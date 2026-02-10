@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 
 export default function LoginPage() {
   const router = useRouter();
-
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,53 +21,46 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
+    setLoading(true);
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: formData.email,
-    password: formData.password,
-  });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: formData.email,
+      password: formData.password,
+    });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+    if (error) {
+      alert(error.message);
+      setLoading(false);
+      return;
+    }
 
-  // 🔥 Always get fresh user (avoids stale session)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    alert("User not found");
-    return;
-  }
+    if (!user) {
+      alert("User not found");
+      return;
+    }
 
-  // 🎯 Fetch role from PROFILES table (REAL SOURCE)
-  const { data: profile, error: roleError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+    const { data: profile, error: roleError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
 
-  if (roleError || !profile) {
-    alert("Role not assigned");
-    return;
-  }
+    if (roleError || !profile) {
+      alert("Role not assigned");
+      return;
+    }
 
-  console.log("LOGIN ROLE =", profile.role);
-
-  // 🚀 ROLE BASED ROUTING
-  if (profile.role === 'admin' || profile.role === 'staff') {
-    router.push('/admin/dashboard');       // Admin Panel Access
-  } 
-  else if (profile.role === 'master') {
-    router.push('/admin/dashboard');     // View-only dashboard
-  } 
-  else {
-    router.push('/user/dashboard');            // Normal user
-  }
-};
+    if (profile.role === 'admin' || profile.role === 'staff' || profile.role === 'master') {
+      router.push('/admin/dashboard');
+    } else {
+      router.push('/user/dashboard');
+    }
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-muted">
@@ -94,8 +87,18 @@ export default function LoginPage() {
             required
             className="w-full border p-2 rounded"
           />
-
-          <Button type="submit" className="w-full">Login</Button>
+          <p className="text-xs text-gray-500 text-center">
+            Trouble logging in? Use password reset.
+          </p>
+          <div className="text-right text-sm">
+            <Link href="/forgot-password" className="text-blue-600 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+          
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </Button>
         </form>
 
         <p className="text-sm mt-4">

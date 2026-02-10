@@ -202,6 +202,7 @@ export default function AdminDashboard() {
                           onChange={(e) => updateUserRole(client.id, e.target.value)}
                         >
                           <option value="user">User</option>
+                          <option value="master">Master User</option>
                           <option value="staff">Staff</option>
                           <option value="admin">Admin</option>
                         </select>
