@@ -138,7 +138,7 @@ export default function AdminDashboard() {
 
         {/* NOTIFICATION CARD */}
         <Card className="p-6 space-y-4 shadow-sm">
-          <h2 className="text-lg font-bold">Quick Notify</h2>
+          <h2 className="text-lg font-bold">Quick Notify To Client</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative" ref={dropdownRef}>
               <input
@@ -276,19 +276,19 @@ export default function AdminDashboard() {
             </div>
             
             <div className="flex gap-1 text-center">
-              <a href={doc.file_url} target="_blank" className="flex-1 bg-white border py-1 rounded-md text-[8px] font-bold text-gray-600 hover:shadow-sm">View</a>
-              <a href={doc.file_url} download className="flex-1 bg-white border py-1 rounded-md text-[8px] font-bold text-gray-600 hover:shadow-sm">Save</a>
+              <a href={doc.file_url} target="_blank" className="flex-1 bg-white border py-1 rounded-md text-[12px] font-bold text-gray-600 hover:shadow-sm">View</a>
+              <a href={doc.file_url} download className="flex-1 bg-white border py-1 rounded-md text-[12px] font-bold text-gray-600 hover:shadow-sm">Download</a>
             </div>
 
             {(myRole === 'admin' || myRole === 'staff') && (
               <div className="flex gap-1 pt-1">
                 <button 
                   onClick={() => updateDocStatus(doc.id, 'approved')}
-                  className="flex-1 bg-green-600 text-white py-1 rounded-md text-[8px] font-black hover:bg-green-700"
+                  className="flex-1 bg-green-600 text-white py-1 rounded-md text-[12px] font-black hover:bg-green-700"
                 >Approve</button>
                 <button 
                   onClick={() => updateDocStatus(doc.id, 'rejected')}
-                  className="flex-1 bg-red-600 text-white py-1 rounded-md text-[8px] font-black hover:bg-red-700"
+                  className="flex-1 bg-red-600 text-white py-1 rounded-md text-[12px] font-black hover:bg-red-700"
                 >Reject</button>
               </div>
             )}
