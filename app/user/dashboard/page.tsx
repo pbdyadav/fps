@@ -13,6 +13,7 @@ export default function UserDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
 
   // 🔔 Load Notifications
   const loadNotifications = async (userId: string) => {
@@ -24,7 +25,15 @@ export default function UserDashboard() {
 
     setNotifications(data || []);
   };
+  const loadApplications = async (userId: string) => {
+    const { data } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
+    setApplications(data || []);
+  };
   // 🔐 Check Login
   useEffect(() => {
     const checkUser = async () => {
@@ -44,7 +53,10 @@ export default function UserDashboard() {
 
   // 🔔 Load notifications after user found
   useEffect(() => {
-    if (user) loadNotifications(user.id);
+    if (user) {
+      loadNotifications(user.id);
+      loadApplications(user.id);   // ⭐ ADD THIS
+    }
   }, [user]);
 
   // ✅ Mark as Read
@@ -106,7 +118,34 @@ export default function UserDashboard() {
           ))}
         </div>
       )}
+      {/* 📄 My Applications */}
+      {applications.length > 0 && (
+        <div className="bg-white border p-4 rounded mb-6">
+          <h2 className="text-xl font-bold mb-3">📄 My Applications</h2>
 
+          <div className="space-y-2">
+            {applications.map((app) => (
+              <div
+                key={app.id}
+                className="flex justify-between items-center border p-3 rounded bg-gray-50"
+              >
+                <div>
+                  <p className="font-semibold capitalize">{app.type} Service</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(app.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div className="text-sm font-bold">
+                  {app.status === 'submitted' && <span className="text-yellow-600">🟡 Pending</span>}
+                  {app.status === 'approved' && <span className="text-green-600">🟢 Approved</span>}
+                  {app.status === 'rejected' && <span className="text-red-600">🔴 Rejected</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* 📁 ACTION CARDS ONLY (NO LEFT MENU HERE) */}
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="p-6 flex flex-col items-center text-center shadow-md">

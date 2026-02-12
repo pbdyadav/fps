@@ -5,16 +5,16 @@ import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
+import { useLanguage } from '@/context/LanguageContext'
 
 export default function NavBar() {
-  const [language, setLanguage] = useState('en')
+  const { language, setLanguage } = useLanguage()
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
     // 🛑 Prevent build crash
     if (!supabase?.auth) return
-
     const getUser = async () => {
       const { data } = await supabase.auth.getUser()
       setUser(data.user)
@@ -83,6 +83,12 @@ export default function NavBar() {
 
           {/* Right Side */}
           <div className="flex items-center gap-4">
+
+            {user && (
+              <Link href="/notifications" className="relative text-xl">
+                🔔
+              </Link>
+            )}
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}

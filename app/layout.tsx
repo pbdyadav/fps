@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import NavBar from '@/components/nav-bar'
+import { LanguageProvider } from '@/context/LanguageContext'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -14,18 +15,9 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.png',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png', media: '(prefers-color-scheme: dark)' },
+      { url: '/icon.png', type: 'image/svg+xml' },
     ],
     apple: '/apple-icon.png',
   },
@@ -41,14 +33,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className={`font-sans antialiased`}>
-        <NavBar />
-        {children}
+      <body className="font-sans antialiased">
+        <LanguageProvider>
+          <NavBar />
+          {children}
+        </LanguageProvider>
         <Analytics />
       </body>
     </html>

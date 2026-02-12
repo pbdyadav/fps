@@ -7,6 +7,22 @@ import { Card } from '@/components/ui/card';
 import { Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import imageCompression from "browser-image-compression";
+import { useLanguage } from '@/context/LanguageContext'
+
+const text: any = {
+  en: {
+    pageTitle: "Income Tax Documents",
+    uploadTitle: "Upload Documents",
+    submit: "Submit All Documents",
+    view: "View"
+  },
+  hi: {
+    pageTitle: "इनकम टैक्स दस्तावेज़",
+    uploadTitle: "दस्तावेज़ अपलोड करें",
+    submit: "सभी दस्तावेज़ जमा करें",
+    view: "देखें"
+  }
+}
 
 const TAX_FORM_FIELDS = [
   'Aadhaar Card', 'PAN Card', 'All Bank Statements (Last 3 Years)', 'LIC Premium Receipts',
@@ -15,8 +31,10 @@ const TAX_FORM_FIELDS = [
 ];
 
 export default function TaxDocumentsPage() {
+  const { language } = useLanguage()
   const router = useRouter();
   const MAX_FILE_SIZE = 300 * 1024; // 300KB
+  const [selectedFY, setSelectedFY] = useState("2024-25")
 
   const [profile, setProfile] = useState<any>(null);
   const [uploadedDocs, setUploadedDocs] = useState<any[]>([]);
@@ -28,14 +46,15 @@ export default function TaxDocumentsPage() {
       .from('applications')
       .insert({
         user_id: user.id,
-        type: 'tax',   // tax page me 'tax'
-        status: 'submitted'
+        type: 'tax',
+        status: 'submitted',
+        financial_year: selectedFY 
       });
 
     if (error) alert(error.message);
     else alert('Documents submitted successfully!');
   };
-{/*if (uploadedDocs.length < 3) {
+  {/*if (uploadedDocs.length < 3) {
   return alert("Please upload required documents before submitting.");
 } */}
   // 🔒 Auth + Load Profile
@@ -44,7 +63,11 @@ export default function TaxDocumentsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.push('/login');
 
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
       setProfile(data);
       loadDocuments(user.id);
     };
@@ -52,12 +75,15 @@ export default function TaxDocumentsPage() {
   }, []);
 
   const loadDocuments = async (userId: string) => {
-    const { data } = await supabase.from('documents')
-      .select('*').eq('user_id', userId).eq('category', 'tax');
-    setUploadedDocs(data || []);
-  };
+  const { data } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('category', 'tax')
+    .eq('financial_year', selectedFY);   // ✅ NOW CORRECT
 
-  
+  setUploadedDocs(data || []);
+};
 
   const uploadFile = async (file: File, docName: string) => {
     let uploadFileFinal = file;
@@ -127,7 +153,8 @@ export default function TaxDocumentsPage() {
         document_name: docName,
         document_type: file.type,
         file_url: publicUrl,
-        status: 'pending'
+        status: 'pending',
+        financial_year: selectedFY   // ✅ ADD THIS
       });
     }
 
@@ -136,20 +163,30 @@ export default function TaxDocumentsPage() {
   };
 
 
+
   if (!profile) return null;
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Income Tax Documents</h1>
-
+        <h1 className="text-3xl font-bold mb-6">{text[language].pageTitle}</h1>
+        <select
+          className="border p-2 mb-4"
+          value={selectedFY}
+          onChange={(e) => setSelectedFY(e.target.value)}
+        >
+          <option value="2025-26">FY 2025-26</option>
+          <option value="2024-25">FY 2024-25</option>
+          <option value="2023-24">FY 2023-24</option>
+          <option value="2022-23">FY 2022-23</option>
+        </select>
         <Card className="p-4 bg-blue-50 text-sm mb-4">
-  <p><b>Name:</b> {profile.full_name}</p>
-  <p><b>Mobile:</b> {profile.mobile}</p>
-  <p><b>Email:</b> {profile.email}</p>
-</Card>
+          <p><b>Name:</b> {profile.full_name}</p>
+          <p><b>Mobile:</b> {profile.mobile}</p>
+          <p><b>Email:</b> {profile.email}</p>
+        </Card>
         <Card className="p-6 mt-6">
-          <h2 className="text-xl font-bold mb-4">Upload Documents</h2>
+          <h2 className="text-xl font-bold mb-4">{text[language].uploadTitle}</h2>
 
           <div className="grid md:grid-cols-2 gap-4">
             {TAX_FORM_FIELDS.map(field => (
@@ -165,18 +202,21 @@ export default function TaxDocumentsPage() {
         {uploadedDocs.map(doc => (
           <div key={doc.id} className="flex justify-between border p-3 mt-3 rounded bg-white">
             <span>{doc.document_name}</span>
-            <a href={doc.file_url} target="_blank" className="text-blue-600 underline">View</a>
+            <a href={doc.file_url} target="_blank" className="text-blue-600 underline">
+              {text[language].view}
+            </a>
+
           </div>
         ))}
 
-        
+
         {/* ✅ ONE FINAL SUBMIT BUTTON */}
         <div className="mt-6">
           <Button
             className="w-full bg-green-600 hover:bg-green-700 text-white"
             onClick={submitApplication}
           >
-            Submit All Documents
+            {text[language].submit}
           </Button>
         </div>
       </div>
