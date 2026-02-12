@@ -186,8 +186,8 @@ export default function AdminDashboard() {
   });
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <main className="min-h-screen bg-gradient-to-br from-slate-100 via-gray-50 to-slate-200 p-6">
+      <div className="max-w-7xl mx-auto space-y-6 backdrop-blur-sm">
         <div className="flex justify-between items-center">
           <h1 className="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
           {myRole === 'admin' && (
@@ -217,8 +217,8 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <Card className="p-5 bg-gradient-to-r from-indigo-50 to-gray-50 border border-indigo-200 shadow-sm">
-        <h2 className="text-xl font-bold mb-3 text-indigo-700">
+      <Card className="p-6 bg-white/80 backdrop-blur-md border border-slate-200 shadow-xl rounded-2xl">
+        <h2 className="text-xl font-bold mb-4 text-slate-800 tracking-tight">
           📅 Financial Year {getFinancialYear()}
         </h2>
 
@@ -251,7 +251,7 @@ export default function AdminDashboard() {
       </Card>
 
       {/* NOTIFICATION CARD */}
-      <Card className="p-6 space-y-4 shadow-sm">
+      <Card className="p-6 space-y-4 shadow-xl rounded-2xl border border-slate-200 bg-white">
         <h2 className="text-lg font-bold">Quick Notify To Client</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative" ref={dropdownRef}>
@@ -284,14 +284,14 @@ export default function AdminDashboard() {
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* CLIENT LIST TABLE */}
-        <Card className="flex-1 p-6 overflow-x-auto shadow-sm">
+        <Card className="flex-1 p-6 overflow-x-auto shadow-xl rounded-2xl border border-slate-200 bg-white">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">User Records</h2>
             <input placeholder="Filter list..." className="border p-2 rounded w-64 shadow-sm text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b text-gray-400 text-xs uppercase tracking-wider">
+              <tr className="border-b bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                 <th className="p-4 font-semibold">Client Info</th>
                 <th className="p-4 font-semibold">Role</th>
                 <th className="p-4 font-semibold">Management</th>
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {filteredClients.map((client) => (
-                <tr key={client.id} className="border-b hover:bg-gray-50 transition-colors">
+                <tr key={client.id} className="border-b hover:bg-slate-50 transition-all duration-200">
                   <td className="p-4">
                     <div className="font-bold text-gray-700">{client.full_name}</div>
                     <div className="text-xs text-gray-500">{client.email}</div>
@@ -351,7 +351,7 @@ export default function AdminDashboard() {
         {/* RIGHT DETAILS PANEL WITH THUMBNAILS */}
         {/* RIGHT DETAILS PANEL - UPDATED FOR TWO COLUMNS */}
         {selectedClientId && clientProfile && (
-          <Card className="w-full lg:w-[500px] p-6 space-y-6 h-fit sticky top-6 bg-white shadow-2xl border-t-4 border-blue-600 animate-in fade-in slide-in-from-right-4">
+          <Card className="w-full lg:w-[500px] p-6 space-y-6 h-fit sticky top-6 bg-white/95 backdrop-blur-xl shadow-2xl border border-slate-200 rounded-2xl animate-in fade-in slide-in-from-right-4">
             <div className="flex justify-between items-start border-b pb-4">
               <div>
                 <h2 className="text-xl font-black text-gray-800">{clientProfile.full_name}</h2>
@@ -370,7 +370,7 @@ export default function AdminDashboard() {
                 )}
 
                 {userDocs.map(doc => (
-                  <div key={doc.id} className="border border-gray-100 rounded-xl p-3 bg-gray-50 shadow-sm space-y-2">
+                  <div key={doc.id} className="border border-slate-200 rounded-xl p-3 bg-white shadow-md hover:shadow-lg transition-all space-y-2">
                     <div className="flex justify-between items-center gap-1">
                       <span className="font-bold text-[9px] text-gray-700 truncate flex-1">{doc.document_name}</span>
                       <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase whitespace-nowrap ${doc.status === 'approved' ? 'bg-green-100 text-green-700' : doc.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
               <h3 className="font-bold mb-3 text-blue-700 uppercase text-xs tracking-wider">Services</h3>
               <div className="grid grid-cols-1 gap-2">
                 {applications.map(app => (
-                  <div key={app.id} className="bg-white border-2 border-blue-50 p-3 rounded-xl shadow-sm">
+                  <div key={app.id} className="bg-white border border-slate-200 p-3 rounded-xl shadow-md hover:shadow-lg transition-all">
                     <div className="flex justify-between items-center mb-2">
                       <p className="text-xs font-black text-gray-700">{app.type}</p>
                       <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">{app.status}</p>

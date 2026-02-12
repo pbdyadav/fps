@@ -28,7 +28,7 @@ export default function Home() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Button
-              onClick={() => router.push('/documents/loan')}
+              onClick={() => router.push('/login')}
               size="lg"
               className="px-8 py-6 text-base font-semibold"
             >
