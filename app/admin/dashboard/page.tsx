@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Trash2, Download, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const sendNotification = async (userId: string, title: string, message: string) => {
   const { error } = await supabase.from('notifications').insert([
@@ -39,6 +40,47 @@ export default function AdminDashboard() {
   const [noteMessage, setNoteMessage] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [selectedFY, setSelectedFY] = useState("2024-25")
+  const downloadClientReport = async () => {
+
+    // ✅ SECURITY CHECK
+  if (myRole !== 'admin') {
+    alert("Unauthorized");
+    return;
+  }
+
+    const { data: profiles } = await supabase.from('profiles').select('*');
+    const { data: apps } = await supabase.from('applications').select('*');
+
+    if (!profiles) return alert("No data");
+
+    const finalData = profiles.map(profile => {
+      const userApps = apps?.filter(a => a.user_id === profile.id);
+
+      const loanApp = userApps?.find(a => a.type === 'loan');
+      const taxApp = userApps?.find(a => a.type === 'tax');
+
+      return {
+        Name: profile.full_name,
+        Email: profile.email,
+        Mobile: profile.mobile,
+        Address: profile.address,
+        PAN: profile.pan_number,
+        GST: profile.gst_number,
+        Type: profile.entity_type,
+        Loan_Status: loanApp?.status || "Not Applied",
+        Tax_Status: taxApp?.status || "Not Applied",
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(finalData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+
+    const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(blob, "CA_Client_Report.xlsx");
+  };
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -148,6 +190,14 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
+          {myRole === 'admin' && (
+            <Button
+              onClick={downloadClientReport}
+              className="bg-green-600 text-white"
+            >
+              Download Client Report
+            </Button>
+          )}
 
           <select
             className="border p-2 rounded"
@@ -380,8 +430,8 @@ export default function AdminDashboard() {
             </div>
           </Card>
         )}
-      
-    </div>
+
+      </div>
     </main >
-);
+  );
 }
