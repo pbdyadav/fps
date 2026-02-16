@@ -91,7 +91,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-sm text-center mt-6 text-gray-300">
-            Don’t have an account? <Link href="/signup" className="text-primary">Sign up</Link>
+            Don't have an account? <Link href="/signup" className="text-primary">Sign up</Link>
           </p>
         </Card>
       </motion.div>

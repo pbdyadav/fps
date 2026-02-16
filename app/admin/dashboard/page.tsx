@@ -40,13 +40,25 @@ export default function AdminDashboard() {
   const [noteMessage, setNoteMessage] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [selectedFY, setSelectedFY] = useState("2024-25")
+  const [categories, setCategories] = useState<any[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [types, setTypes] = useState<any[]>([]);
+  const [newType, setNewType] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
+  const [editingTypeName, setEditingTypeName] = useState('');
+  const [showDocManager, setShowDocManager] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const downloadClientReport = async () => {
 
+
     // ✅ SECURITY CHECK
-  if (myRole !== 'admin') {
-    alert("Unauthorized");
-    return;
-  }
+    if (myRole !== 'admin') {
+      alert("Unauthorized");
+      return;
+    }
 
     const { data: profiles } = await supabase.from('profiles').select('*');
     const { data: apps } = await supabase.from('applications').select('*');
@@ -98,8 +110,11 @@ export default function AdminDashboard() {
       } else {
         setMyRole(profile.role);
         fetchClients();
+        fetchCategories();
+        fetchTypes();
       }
     };
+
     checkAccess();
   }, []);
   useEffect(() => {
@@ -107,6 +122,117 @@ export default function AdminDashboard() {
       loadUserDocuments(selectedClientId);
     }
   }, [selectedFY]);
+
+  const fetchCategories = async () => {
+    const { data } = await supabase
+      .from('document_categories')
+      .select('*')
+      .order('order_no');
+
+    setCategories(data || []);
+  };
+
+  const addCategory = async () => {
+    if (!newCategory) return;
+
+    await supabase.from('document_categories').insert([
+      { name: newCategory }
+    ]);
+
+    setNewCategory('');
+    fetchCategories();
+  };
+
+  const deleteCategory = async (id: string) => {
+    await supabase.from('document_categories').delete().eq('id', id);
+    fetchCategories();
+  };
+
+  const updateCategory = async (id: string) => {
+    if (!editingName.trim()) return;
+
+    const { error } = await supabase
+      .from('document_categories')
+      .update({ name: editingName })
+      .eq('id', id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setEditingId(null);
+    setEditingName('');
+    fetchCategories();
+  };
+
+
+  const fetchTypes = async () => {
+    const { data } = await supabase
+      .from('document_types')
+      .select('*')
+      .order('order_no');
+
+    setTypes(data || []);
+  };
+
+
+
+
+  const addType = async (categoryId: string) => {
+    if (!newType.trim()) return;
+
+    const { error } = await supabase
+      .from('document_types')
+      .insert([
+        { name: newType, category_id: categoryId }
+      ]);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setNewType('');
+    setSelectedCategory(null);
+    fetchTypes();
+  };
+
+
+
+  const deleteType = async (id: string) => {
+    const { error } = await supabase
+      .from('document_types')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    fetchTypes();
+  };
+
+
+  const updateType = async (id: string) => {
+    if (!editingTypeName.trim()) return;
+
+    const { error } = await supabase
+      .from('document_types')
+      .update({ name: editingTypeName })
+      .eq('id', id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setEditingTypeId(null);
+    setEditingTypeName('');
+    fetchTypes();
+  };
+
   const fetchClients = async () => {
     const { data } = await supabase
       .from('profiles')
@@ -189,6 +315,7 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-gradient-to-br from-slate-100 via-gray-50 to-slate-200 p-6">
       <div className="max-w-7xl mx-auto space-y-6 backdrop-blur-sm">
         <div className="flex justify-between items-center">
+
           <h1 className="text-4xl font-bold text-gray-800">Admin Dashboard</h1>
           {myRole === 'admin' && (
             <Button
@@ -198,6 +325,7 @@ export default function AdminDashboard() {
               Download Client Report
             </Button>
           )}
+
 
           <select
             className="border p-2 rounded"
@@ -210,6 +338,228 @@ export default function AdminDashboard() {
             <option value="2022-23">FY 2022-23</option>
           </select>
         </div>
+
+        {/* DOCUMENT CATEGORY TOGGLE BUTTON */}
+        <Card className="p-4 shadow-md rounded-2xl border bg-white">
+          <div className="flex justify-between items-center">
+            <h2 className="font-bold text-lg">📂 Document Management</h2>
+            <Button
+              variant="outline"
+              onClick={() => setShowDocManager(!showDocManager)}
+            >
+              {showDocManager ? "Close" : "Open"}
+            </Button>
+          </div>
+        </Card>
+
+        {/* DOCUMENT MANAGER PANEL */}
+        {showDocManager && (
+          <Card className="p-6 shadow-xl rounded-2xl border bg-white mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              {/* LEFT SIDE - CATEGORIES */}
+              <div className="border-r pr-4 max-h-[400px] overflow-y-auto">
+                <h3 className="font-bold mb-3">Categories</h3>
+
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    placeholder="New Category"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="border p-2 rounded w-full"
+                  />
+                  <Button onClick={addCategory}>Add</Button>
+                </div>
+
+                {categories.map(cat => (
+                  <div
+                    key={cat.id}
+                    onClick={() => setActiveCategoryId(cat.id)}
+                    className={`p-2 rounded cursor-pointer flex justify-between items-center ${activeCategoryId === cat.id
+                      ? "bg-blue-100"
+                      : "hover:bg-gray-100"
+                      }`}
+                  >
+                    {editingId === cat.id ? (
+                      <input
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        className="border p-1 rounded text-sm"
+                      />
+                    ) : (
+                      <span>{cat.name}</span>
+                    )}
+                    <div className="flex gap-1">
+                      {editingId === cat.id ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateCategory(cat.id);
+                            }}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(null);
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(cat.id);
+                              setEditingName(cat.name);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteCategory(cat.id);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* RIGHT SIDE - TYPES */}
+              <div className="max-h-[400px] overflow-y-auto">
+                <h3 className="font-bold mb-3">Document Types</h3>
+
+                {activeCategoryId ? (
+                  <>
+                    <div className="flex gap-2 mb-4">
+                      <input
+                        value={newType}
+                        onChange={(e) => setNewType(e.target.value)}
+                        placeholder="New Document Type"
+                        className="border p-2 rounded w-full"
+                      />
+                      <Button onClick={() => addType(activeCategoryId)}>Add</Button>
+                    </div>
+
+                    {types
+                      .filter(t => t.category_id === activeCategoryId)
+                      .map(type => (
+                        <div
+                          key={type.id}
+                          className="border p-3 rounded mb-3 space-y-2"
+                        >
+
+                          {/* TOP ROW */}
+                          <div className="flex justify-between items-center">
+                            {editingTypeId === type.id ? (
+                              <input
+                                value={editingTypeName}
+                                onChange={(e) => setEditingTypeName(e.target.value)}
+                                className="border p-1 rounded text-sm"
+                              />
+                            ) : (
+                              <span className="font-medium">{type.name}</span>
+                            )}
+
+                            <div className="flex gap-2">
+                              {editingTypeId === type.id ? (
+                                <>
+                                  <Button size="sm" onClick={() => updateType(type.id)}>Save</Button>
+                                  <Button size="sm" variant="outline" onClick={() => setEditingTypeId(null)}>Cancel</Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingTypeId(type.id);
+                                      setEditingTypeName(type.name);
+                                    }}
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteType(type.id)}
+                                  >
+                                    Delete
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* SETTINGS ROW */}
+                          <div className="flex items-center gap-6 text-xs">
+
+                            {/* REQUIRED */}
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={type.is_required}
+                                onChange={async () => {
+                                  await supabase
+                                    .from('document_types')
+                                    .update({ is_required: !type.is_required })
+                                    .eq('id', type.id);
+                                  fetchTypes();
+                                }}
+                              />
+                              Required
+                            </label>
+
+                            {/* ACTIVE */}
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={type.is_active}
+                                onChange={async () => {
+                                  await supabase
+                                    .from('document_types')
+                                    .update({ is_active: !type.is_active })
+                                    .eq('id', type.id);
+                                  fetchTypes();
+                                }}
+                              />
+                              Active
+                            </label>
+
+                          </div>
+
+
+                        </div>
+                      ))}
+                  </>
+                ) : (
+                  <p className="text-gray-400 text-sm">
+                    Select a category to manage document types.
+                  </p>
+                )}
+              </div>
+
+            </div>
+          </Card>
+        )}
 
         <div className="flex gap-3">
           <Button variant={viewType === 'client' ? 'default' : 'outline'} onClick={() => setViewType('client')}>Individual</Button>

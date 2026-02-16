@@ -154,7 +154,7 @@ export default function UserDashboard() {
           <p className="text-sm mb-4 text-gray-500">
             Upload KYC, bank, property, loan papers
           </p>
-          <Button onClick={() => router.push('/documents/loan')} className="w-full">
+          <Button onClick={() => router.push('/documents/loan-v2')} className="w-full">
             Go to Loan Upload
           </Button>
         </Card>

@@ -60,13 +60,14 @@ export default function NavBar() {
   const t = translations[language as keyof typeof translations];
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-border shadow-sm">
+    <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/5 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 bg-secondary">
+        <div className="flex justify-between items-center h-16">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+              {/*<div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">*/}
               <span className="text-primary-foreground font-bold text-lg">pfs</span>
             </div>
             <span className="font-semibold text-foreground hidden sm:inline">{t.logoText}</span>
@@ -76,7 +77,7 @@ export default function NavBar() {
           {!user && (
             <div className="hidden md:flex gap-8">
               <Link href="/" className="text-foreground hover:text-primary">{t.home}</Link>
-              <Link href="/documents/loan" className="text-foreground hover:text-primary">{t.loanDocs}</Link>
+              <Link href="/documents/loan-v2" className="text-foreground hover:text-primary">{t.loanDocs}</Link>
               <Link href="/documents/tax" className="text-foreground hover:text-primary">{t.taxDocs}</Link>
             </div>
           )}
